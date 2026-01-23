@@ -138,50 +138,40 @@ class QuickBooksClient:
 
     def merge(
         self,
-        destination: str,
-        sources: List[str],
-        entity_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        merge_from: Dict[str, str],
+        merge_to: Dict[str, str],
+        entity_type: str
+    ) -> Dict[str, Any]:
         """
-        Merge multiple records into a single destination record.
+        Merge one record into another record.
 
-        All references to the source records will be updated to point to the
-        destination record. Source records are deleted after merge.
+        All references to the source record will be updated to point to the
+        destination record. Source record is deleted after merge.
 
         Args:
-            destination: ListID of the record to keep (merge INTO)
-            sources: List of ListIDs to merge FROM (will be deleted)
+            merge_from: Dict with 'ListID' and 'EditSequence' of record to merge FROM (will be deleted)
+            merge_to: Dict with 'ListID' and 'EditSequence' of record to keep (merge INTO)
             entity_type: Entity type (e.g., "Customer", "Vendor", "Account").
-                        If None, attempts merge across all supported entity types.
 
         Returns:
-            List of dicts containing merge results for each source record.
-            Each dict has: success, merged_to_list_id, status_code, status_message,
-            source_list_id, entity_type
+            Dict containing merge result with: success, merged_to_list_id,
+            status_code, status_message, source_list_id, entity_type
         """
-        if entity_type:
-            entity_types = [entity_type]
-        else:
-            entity_types = list(QueryBuilder.ENTITY_MERGE_MAPPING.keys())
+        builder = QueryBuilder(entity_type, self.qbxml_version)
 
-        results = []
+        xml_request = builder.build_merge_request(
+            merge_from_list_id=merge_from["ListID"],
+            merge_from_edit_sequence=merge_from["EditSequence"],
+            merge_to_list_id=merge_to["ListID"],
+            merge_to_edit_sequence=merge_to["EditSequence"]
+        )
 
-        for etype in entity_types:
-            builder = QueryBuilder(etype, self.qbxml_version)
+        root = self._execute_request(xml_request)
+        result = builder.parse_merge_response(root)
+        result["source_list_id"] = merge_from["ListID"]
+        result["entity_type"] = entity_type
 
-            for source_list_id in sources:
-                xml_request = builder.build_merge_request(
-                    merge_into_list_id=destination,
-                    merge_from_list_id=source_list_id
-                )
-
-                root = self._execute_request(xml_request)
-                result = builder.parse_merge_response(root)
-                result["source_list_id"] = source_list_id
-                result["entity_type"] = etype
-                results.append(result)
-
-        return results
+        return result
 
     def query_customers(
         self,
@@ -203,67 +193,68 @@ class QuickBooksClient:
 
     def merge_customers(
         self,
-        destination: str,
-        sources: List[str]
-    ) -> List[Dict[str, Any]]:
+        merge_from: Dict[str, str],
+        merge_to: Dict[str, str]
+    ) -> Dict[str, Any]:
         """
-        Merge multiple customers into a single destination customer.
+        Merge one customer into another customer.
 
         All invoices, payments, estimates, and other transactions referencing
-        the source customers will be updated to reference the destination customer.
-        Source customers are deleted after merge.
+        the source customer will be updated to reference the destination customer.
+        Source customer is deleted after merge.
 
         Args:
-            destination: ListID of the customer to keep (merge INTO)
-            sources: List of customer ListIDs to merge FROM (will be deleted)
+            merge_from: Dict with 'ListID' and 'EditSequence' of customer to merge FROM (will be deleted)
+            merge_to: Dict with 'ListID' and 'EditSequence' of customer to keep (merge INTO)
 
         Returns:
-            List of dicts containing merge results for each source customer.
-            Each dict has: success, merged_to_list_id, status_code, status_message,
-            source_list_id
+            Dict containing merge result with: success, merged_to_list_id,
+            status_code, status_message, source_list_id
         """
-        return self.merge(destination, sources, entity_type="Customer")
+        return self.merge(merge_from, merge_to, entity_type="Customer")
 
     def merge_vendors(
         self,
-        destination: str,
-        sources: List[str]
-    ) -> List[Dict[str, Any]]:
+        merge_from: Dict[str, str],
+        merge_to: Dict[str, str]
+    ) -> Dict[str, Any]:
         """
-        Merge multiple vendors into a single destination vendor.
+        Merge one vendor into another vendor.
 
         All bills, purchase orders, and other transactions referencing
-        the source vendors will be updated to reference the destination vendor.
-        Source vendors are deleted after merge.
+        the source vendor will be updated to reference the destination vendor.
+        Source vendor is deleted after merge.
 
         Args:
-            destination: ListID of the vendor to keep (merge INTO)
-            sources: List of vendor ListIDs to merge FROM (will be deleted)
+            merge_from: Dict with 'ListID' and 'EditSequence' of vendor to merge FROM (will be deleted)
+            merge_to: Dict with 'ListID' and 'EditSequence' of vendor to keep (merge INTO)
 
         Returns:
-            List of dicts containing merge results for each source vendor.
+            Dict containing merge result with: success, merged_to_list_id,
+            status_code, status_message, source_list_id
         """
-        return self.merge(destination, sources, entity_type="Vendor")
+        return self.merge(merge_from, merge_to, entity_type="Vendor")
 
     def merge_accounts(
         self,
-        destination: str,
-        sources: List[str]
-    ) -> List[Dict[str, Any]]:
+        merge_from: Dict[str, str],
+        merge_to: Dict[str, str]
+    ) -> Dict[str, Any]:
         """
-        Merge multiple accounts into a single destination account.
+        Merge one account into another account.
 
-        All transactions referencing the source accounts will be updated
-        to reference the destination account. Source accounts are deleted after merge.
+        All transactions referencing the source account will be updated
+        to reference the destination account. Source account is deleted after merge.
 
         Args:
-            destination: ListID of the account to keep (merge INTO)
-            sources: List of account ListIDs to merge FROM (will be deleted)
+            merge_from: Dict with 'ListID' and 'EditSequence' of account to merge FROM (will be deleted)
+            merge_to: Dict with 'ListID' and 'EditSequence' of account to keep (merge INTO)
 
         Returns:
-            List of dicts containing merge results for each source account.
+            Dict containing merge result with: success, merged_to_list_id,
+            status_code, status_message, source_list_id
         """
-        return self.merge(destination, sources, entity_type="Account")
+        return self.merge(merge_from, merge_to, entity_type="Account")
 
     def _filter_by_name(
         self,

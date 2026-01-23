@@ -9,12 +9,12 @@ class QueryBuilder:
 
     # Common fields for different entity types
     DEFAULT_FIELDS = {
-        "Customer": ["ListID", "FullName", "IsActive", "Email", "Phone", "Balance"],
-        "Vendor": ["ListID", "Name", "IsActive", "Email", "Phone", "Balance"],
+        "Customer": ["ListID", "EditSequence", "FullName", "IsActive", "Email", "Phone", "Balance"],
+        "Vendor": ["ListID", "EditSequence", "Name", "IsActive", "Email", "Phone", "Balance"],
         "Invoice": ["TxnID", "RefNumber", "CustomerRef", "TxnDate", "DueDate", "BalanceRemaining"],
-        "Item": ["ListID", "FullName", "IsActive", "Type", "Description", "Price"],
+        "Item": ["ListID", "EditSequence", "FullName", "IsActive", "Type", "Description", "Price"],
         "Employee": ["ListID", "Name", "IsActive", "Email", "Phone"],
-        "Account": ["ListID", "FullName", "IsActive", "AccountType", "Balance"],
+        "Account": ["ListID", "EditSequence", "FullName", "IsActive", "AccountType", "Balance"],
     }
 
     # Mapping of entity types to their query request names
@@ -139,15 +139,19 @@ class QueryBuilder:
 
     def build_merge_request(
         self,
-        merge_into_list_id: str,
-        merge_from_list_id: str
+        merge_from_list_id: str,
+        merge_from_edit_sequence: str,
+        merge_to_list_id: str,
+        merge_to_edit_sequence: str
     ) -> str:
         """
         Build QBXML merge request.
 
         Args:
-            merge_into_list_id: ListID of the record to keep (destination).
             merge_from_list_id: ListID of the record to merge from (will be deleted).
+            merge_from_edit_sequence: EditSequence of the source record.
+            merge_to_list_id: ListID of the record to keep (destination).
+            merge_to_edit_sequence: EditSequence of the destination record.
 
         Returns:
             QBXML merge request string.
@@ -171,8 +175,14 @@ class QueryBuilder:
             '    <QBXMLMsgsRq onError="stopOnError">',
             f'        <{merge_request} requestID="1">',
             f'            <ListMergeType>{list_type}</ListMergeType>',
-            f'            <FromListID>{merge_from_list_id}</FromListID>',
-            f'            <ToListID>{merge_into_list_id}</ToListID>',
+            f'            <MergeFrom>',
+            f'                <ListID>{merge_from_list_id}</ListID>',
+            f'                <EditSequence>{merge_from_edit_sequence}</EditSequence>',
+            f'            </MergeFrom>',
+            f'            <MergeTo>',
+            f'                <ListID>{merge_to_list_id}</ListID>',
+            f'                <EditSequence>{merge_to_edit_sequence}</EditSequence>',
+            f'            </MergeTo>',
             f'        </{merge_request}>',
             '    </QBXMLMsgsRq>',
             '</QBXML>'
