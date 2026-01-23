@@ -171,8 +171,8 @@ class QueryBuilder:
             '    <QBXMLMsgsRq onError="stopOnError">',
             f'        <{merge_request} requestID="1">',
             f'            <ListMergeType>{list_type}</ListMergeType>',
-            f'            <FromRecordID>{merge_from_list_id}</FromRecordID>',
-            f'            <ToRecordID>{merge_into_list_id}</ToRecordID>',
+            f'            <FromListID>{merge_from_list_id}</FromListID>',
+            f'            <ToListID>{merge_into_list_id}</ToListID>',
             f'        </{merge_request}>',
             '    </QBXMLMsgsRq>',
             '</QBXML>'
@@ -205,9 +205,9 @@ class QueryBuilder:
             result["success"] = result["status_code"] == "0"
 
             # Get the merged-to ListID if available
-            to_record = merge_rs.find('.//ToRecordID')
-            if to_record is not None:
-                result["merged_to_list_id"] = to_record.text
+            to_list = merge_rs.find('.//ToListID')
+            if to_list is not None:
+                result["merged_to_list_id"] = to_list.text
 
         return result
 
