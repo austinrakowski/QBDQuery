@@ -51,6 +51,26 @@ class QueryBuilder:
         "SalesReceipt": "SalesReceiptRet",
     }
 
+    # Mapping of entity types that support merge operations
+    ENTITY_MERGE_MAPPING = {
+        "Customer": "ListMergeRq",
+        "Vendor": "ListMergeRq",
+        "Account": "ListMergeRq",
+        "OtherName": "ListMergeRq",
+        "Item": "ListMergeRq",
+        "Class": "ListMergeRq",
+    }
+
+    # Mapping of entity types to their merge list type identifier
+    MERGE_LIST_TYPE = {
+        "Customer": "Customer",
+        "Vendor": "Vendor",
+        "Account": "Account",
+        "OtherName": "OtherName",
+        "Item": "ItemInventory",
+        "Class": "Class",
+    }
+
     def __init__(self, entity_type: str, qbxml_version: str = "13.0"):
         """
         Initialize query builder.
@@ -116,6 +136,80 @@ class QueryBuilder:
         ])
 
         return '\n'.join(xml_parts)
+
+    def build_merge_request(
+        self,
+        merge_into_list_id: str,
+        merge_from_list_id: str
+    ) -> str:
+        """
+        Build QBXML merge request.
+
+        Args:
+            merge_into_list_id: ListID of the record to keep (destination).
+            merge_from_list_id: ListID of the record to merge from (will be deleted).
+
+        Returns:
+            QBXML merge request string.
+
+        Raises:
+            ValueError: If entity type doesn't support merge operations.
+        """
+        if self.entity_type not in self.ENTITY_MERGE_MAPPING:
+            raise ValueError(
+                f"Entity type '{self.entity_type}' does not support merge. "
+                f"Supported types: {', '.join(self.ENTITY_MERGE_MAPPING.keys())}"
+            )
+
+        merge_request = self.ENTITY_MERGE_MAPPING[self.entity_type]
+        list_type = self.MERGE_LIST_TYPE[self.entity_type]
+
+        xml_parts = [
+            f'<?xml version="1.0" encoding="utf-8"?>',
+            f'<?qbxml version="{self.qbxml_version}"?>',
+            '<QBXML>',
+            '    <QBXMLMsgsRq onError="stopOnError">',
+            f'        <{merge_request}>',
+            f'            <ListMergeType>{list_type}</ListMergeType>',
+            f'            <FromRecordID>{merge_from_list_id}</FromRecordID>',
+            f'            <ToRecordID>{merge_into_list_id}</ToRecordID>',
+            f'        </{merge_request}>',
+            '    </QBXMLMsgsRq>',
+            '</QBXML>'
+        ]
+
+        return '\n'.join(xml_parts)
+
+    def parse_merge_response(self, root: ET.Element) -> Dict[str, Any]:
+        """
+        Parse QBXML merge response.
+
+        Args:
+            root: Root element of parsed QBXML response.
+
+        Returns:
+            Dictionary containing merge result status.
+        """
+        result = {
+            "success": False,
+            "merged_to_list_id": None,
+            "status_code": None,
+            "status_message": None
+        }
+
+        # Find the ListMergeRs element
+        merge_rs = root.find('.//ListMergeRs')
+        if merge_rs is not None:
+            result["status_code"] = merge_rs.get('statusCode')
+            result["status_message"] = merge_rs.get('statusMessage')
+            result["success"] = result["status_code"] == "0"
+
+            # Get the merged-to ListID if available
+            to_record = merge_rs.find('.//ToRecordID')
+            if to_record is not None:
+                result["merged_to_list_id"] = to_record.text
+
+        return result
 
     def parse_response(
         self,

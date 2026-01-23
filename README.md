@@ -10,6 +10,7 @@ https://pypi.org/project/qbdquery/0.1.1/
 - Select specific fields to return
 - Filter and search capabilities
 - Automatic connection management
+- Merge duplicate records (customers, vendors, accounts, items, and more)
 
 
 ## Installation
@@ -150,10 +151,87 @@ with client.session():
     )
 ```
 
+## Merging Records
+
+QBDQuery supports merging duplicate records in QuickBooks. When records are merged, all references to the source records (invoices, transactions, etc.) are automatically updated to point to the destination record, and the source records are deleted.
+
+### Basic Merge
+
+```python
+with client.session():
+    # Merge multiple customers into one
+    # The first ID is the destination (kept), the rest are sources (deleted)
+    results = client.merge_customers(
+        destination="80000001-1234567890",  # ListID to keep
+        sources=["80000002-1234567890", "80000003-1234567890"]  # ListIDs to delete
+    )
+
+    for result in results:
+        if result["success"]:
+            print(f"Merged {result['source_list_id']} into {result['merged_to_list_id']}")
+        else:
+            print(f"Failed: {result['status_message']}")
+```
+
+### Merge Vendors
+
+```python
+with client.session():
+    # Merge duplicate vendors
+    results = client.merge_vendors(
+        destination="80000010-1234567890",
+        sources=["80000011-1234567890"]
+    )
+```
+
+### Merge Accounts
+
+```python
+with client.session():
+    # Merge duplicate accounts
+    results = client.merge_accounts(
+        destination="80000020-1234567890",
+        sources=["80000021-1234567890", "80000022-1234567890"]
+    )
+```
+
+### Generic Merge
+
+```python
+with client.session():
+    # Merge any supported entity type
+    results = client.merge(
+        destination="80000001-1234567890",
+        sources=["80000002-1234567890"],
+        entity_type="Customer"  # Optional: Customer, Vendor, Account, OtherName, Item, Class
+    )
+```
+
+### Finding Duplicates to Merge
+
+```python
+with client.session():
+    # Find potential duplicate customers by name
+    customers = client.query_customers(
+        name="Smith",
+        fields=["ListID", "FullName", "Email", "Balance"]
+    )
+
+    # Review duplicates and merge
+    if len(customers) > 1:
+        destination = customers[0]["ListID"]  # Keep the first one
+        sources = [c["ListID"] for c in customers[1:]]  # Merge the rest
+
+        results = client.merge_customers(destination, sources)
+```
+
+> **Warning**: Merging is permanent and cannot be undone. Source records are deleted after merge. Always backup your QuickBooks company file before performing merge operations.
+
 ## Supported Entity Types
 
 - **Lists**: Customer, Vendor, Employee, Item, Account
 - **Transactions**: Invoice, Bill, Check, CreditMemo, Estimate, PurchaseOrder, SalesOrder, SalesReceipt
+- **Merge-supported**: Customer, Vendor, Account, OtherName, Item, Class
 - And more via the generic `query()` method
 
 ## API Reference
@@ -192,6 +270,38 @@ Generic query method for any QuickBooks entity.
 - `query_items(name=None, search=None, fields=None, include_inactive=True, max_results=None)`
 - `query_accounts(name=None, search=None, fields=None, include_inactive=True, max_results=None)`
 - `query_invoices(name=None, search=None, fields=None, filters=None, max_results=None)`
+
+#### Merge Methods
+
+##### `merge(destination, sources, entity_type=None)`
+
+Generic merge method for any supported QuickBooks entity.
+
+- `destination`: ListID of the record to keep (merge INTO)
+- `sources`: List of ListIDs to merge FROM (will be deleted)
+- `entity_type`: Entity type (e.g., "Customer", "Vendor", "Account"). If `None`, attempts across all supported types.
+- **Returns**: List of dicts with keys: `success`, `merged_to_list_id`, `status_code`, `status_message`, `source_list_id`, `entity_type`
+
+##### `merge_customers(destination, sources)`
+
+Merge multiple customers into a single destination customer. Updates all invoices, payments, and estimates to reference the destination.
+
+- `destination`: ListID of the customer to keep
+- `sources`: List of customer ListIDs to merge and delete
+
+##### `merge_vendors(destination, sources)`
+
+Merge multiple vendors into a single destination vendor. Updates all bills and purchase orders to reference the destination.
+
+- `destination`: ListID of the vendor to keep
+- `sources`: List of vendor ListIDs to merge and delete
+
+##### `merge_accounts(destination, sources)`
+
+Merge multiple accounts into a single destination account. Updates all transactions to reference the destination.
+
+- `destination`: ListID of the account to keep
+- `sources`: List of account ListIDs to merge and delete
 
 
 ### Example: Export Customer List to CSV
