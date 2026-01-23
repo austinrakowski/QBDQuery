@@ -2,7 +2,7 @@
 
 A Python package for querying QuickBooks Desktop data.
 
-https://pypi.org/project/qbdquery/0.1.1/
+https://pypi.org/project/qbdquery/0.1.3/
 
 ## Features
 

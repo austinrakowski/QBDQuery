@@ -169,7 +169,7 @@ class QueryBuilder:
             f'<?qbxml version="{self.qbxml_version}"?>',
             '<QBXML>',
             '    <QBXMLMsgsRq onError="stopOnError">',
-            f'        <{merge_request}>',
+            f'        <{merge_request} requestID="1">',
             f'            <ListMergeType>{list_type}</ListMergeType>',
             f'            <FromRecordID>{merge_from_list_id}</FromRecordID>',
             f'            <ToRecordID>{merge_into_list_id}</ToRecordID>',
